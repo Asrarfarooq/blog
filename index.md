@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Home # SEO Title for the homepage
+title: Home # Title for the homepage
 ---
 
 <div class="home-content">

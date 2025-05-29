@@ -38,3 +38,4 @@ jspm_packages/
 *.bak
 *.orig
 *.rej
+_site/feed.xml
