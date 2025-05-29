@@ -691,6 +691,63 @@ h6 {
   color: #ccc;
 }
 
+.home-content .page-heading {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  color: #fff;
+}
+.home-content .site-description {
+  font-size: 1.2rem;
+  color: #ccc;
+  margin-bottom: 2rem;
+}
+.home-content .section-divider {
+  border: 0;
+  height: 1px;
+  background: #444;
+  margin: 2rem 0;
+}
+
+.post-list {
+  list-style: none;
+  padding-left: 0;
+}
+.post-list li {
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #333;
+}
+.post-list li:last-child {
+  border-bottom: none;
+}
+.post-list .post-link {
+  font-size: 1.75rem;
+  color: #80caff;
+  text-decoration: none;
+  display: block;
+}
+.post-list .post-link:hover {
+  color: #a6daff;
+  text-decoration: underline;
+}
+.post-list .post-meta {
+  display: block;
+  font-size: 0.9rem;
+  color: #999;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+.post-list .post-author {
+  font-style: italic;
+  color: #bbb;
+  margin-left: 10px;
+}
+.post-list .post-excerpt {
+  color: #ddd;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
 .wrapper {
   max-width: 800px;
   margin-left: auto;
@@ -743,8 +800,103 @@ h6 {
   margin-bottom: 0.5em;
 }
 
-pre,
-code {
+.post-header-academic {
+  margin-bottom: 2rem;
+  text-align: left;
+}
+.post-header-academic .post-title-academic {
+  font-size: 2.8rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+.post-header-academic .post-meta-academic {
+  font-size: 1rem;
+  color: #bbb;
+  margin-bottom: 1.5rem;
+}
+.post-header-academic .post-abstract {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #1a1a1a;
+  border-left: 3px solid #555;
+}
+.post-header-academic .post-abstract h2 {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #ddd;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+.post-header-academic .post-abstract p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #ccc;
+  margin-bottom: 0;
+}
+.post-header-academic .post-keywords {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-bottom: 2rem;
+}
+.post-header-academic .post-keywords strong {
+  color: #ccc;
+}
+
+.section-divider-post {
+  border: 0;
+  height: 1px;
+  background: #444;
+  margin: 1rem 0 2rem 0;
+}
+
+.post-content-academic {
+  line-height: 1.8;
+  font-size: 1.1rem;
+}
+.post-content-academic h1,
+.post-content-academic h2,
+.post-content-academic h3,
+.post-content-academic h4,
+.post-content-academic h5,
+.post-content-academic h6 {
+  font-weight: 600;
+  color: #eee;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid #444;
+}
+.post-content-academic h1 {
+  font-size: 2.2rem;
+}
+.post-content-academic h2 {
+  font-size: 1.8rem;
+}
+.post-content-academic h3 {
+  font-size: 1.5rem;
+}
+.post-content-academic figure {
+  margin: 2rem 0;
+}
+.post-content-academic figure img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  border: 1px solid #444;
+}
+.post-content-academic figure figcaption {
+  font-size: 0.9rem;
+  color: #aaa;
+  text-align: center;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+.post-content-academic pre,
+.post-content-academic code {
   background-color: #1e1e1e;
   color: #d4d4d4;
   border: 1px solid #333;
@@ -752,21 +904,54 @@ code {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
   font-size: 0.9em;
 }
-
-pre {
+.post-content-academic pre {
   padding: 1em;
   overflow-x: auto;
 }
-
-pre code {
+.post-content-academic pre code {
   background-color: transparent;
   border: none;
   padding: 0;
   color: inherit;
 }
-
-code {
+.post-content-academic code {
   padding: 0.2em 0.4em;
+}
+
+@media screen and (max-width: 800px) {
+  .post-header-academic .post-title-academic {
+    font-size: 2.2rem;
+  }
+  .post-header-academic .post-meta-academic {
+    font-size: 0.9rem;
+  }
+  .post-header-academic .post-abstract h2 {
+    font-size: 1.1rem;
+  }
+  .post-content-academic {
+    font-size: 1rem;
+  }
+  .post-content-academic h1 {
+    font-size: 1.9rem;
+  }
+  .post-content-academic h2 {
+    font-size: 1.6rem;
+  }
+  .post-content-academic h3 {
+    font-size: 1.3rem;
+  }
+  .home-content .page-heading {
+    font-size: 2rem;
+  }
+  .home-content .post-list .post-link {
+    font-size: 1.5rem;
+  }
+}
+@media screen and (max-width: 600px) {
+  .wrapper {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
 }
 
 /*# sourceMappingURL=main.css.map */

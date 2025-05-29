@@ -1,11 +1,12 @@
 ---
-layout: post # This tells Jekyll to use the 'post' layout (provided by Minima)
-title: "Welcome to My New Blog!"
-date: 2025-05-28 22:00:00 -0500 # Date and time of post (adjust timezone)
-categories: jekyll update # Optional categories
+layout: post
+title: "Your Insightful Blog Post Title"
+date: 2025-05-28 10:00:00 -0500
+author: "Asrar Farooq" # Or pull from site.author in _config.yml
+categories: [tech, research]
+abstract: "This is a brief summary of the key findings or points discussed in this blog post, presented much like an academic abstract."
+keywords: ["Jekyll", "Blogging", "Academic Style", "Web Design"]
+# Add any other custom front matter you need
 ---
 
-This is my very first blog post using Jekyll.
-I'm excited to share my thoughts and write-ups here.
-
-More content coming soon!
+Your main blog post content starts here...

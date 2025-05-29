@@ -1,0 +1,45 @@
+---
+layout: default # All posts will use the default layout as their base
+---
+<article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+    <header class="post-header-academic">
+        <h1 class="post-title-academic p-name" itemprop="name headline">{{ page.title | escape }}</h1>
+        <p class="post-meta-academic">
+            <time class="dt-published" datetime="{{ page.date | date_to_xmlschema }}" itemprop="datePublished">
+                {%- assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}
+                {{ page.date | date: date_format }}
+            </time>
+            {%- if page.author -%}
+            • <span itemprop="author" itemscope itemtype="http://schema.org/Person"><span class="p-author h-card"
+                    itemprop="name">{{ page.author | escape }}</span></span>
+            {%- endif -%}
+        </p>
+
+        {% if page.abstract %}
+        <div class="post-abstract">
+            <h2>Abstract</h2>
+            <p>{{ page.abstract | markdownify }}</p>
+        </div>
+        {% endif %}
+
+        {% if page.keywords %}
+        <div class="post-keywords">
+            <strong>Keywords:</strong> {{ page.keywords | join: ", " }}
+        </div>
+        {% endif %}
+    </header>
+
+    <hr class="section-divider-post">
+
+
+    <div class="post-content-academic e-content" itemprop="articleBody">
+        {{ content }}
+    </div>
+
+    {%- if site.disqus.shortname -%}
+    {%- include disqus_comments.html -%}
+    {%- endif -%}
+
+    <a class="u-url" href="{{ page.url | relative_url }}" hidden></a>
+</article>

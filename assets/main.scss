@@ -1,6 +1,7 @@
 ---
 ---
 
+// All comments and SCSS code MUST start after the second '---' line.
 @import "minima";
 
 // YOUR FULL CUSTOM STYLES TO MIMIC ASRAR.XYZ
@@ -57,6 +58,70 @@ h6 {
 .site-footer {
   border-top: 1px solid #222; // Ensure border properties are complete
   color: #ccc; // Lighter text for footer
+}
+
+.home-content {
+  .page-heading {
+    // Style for "Your Blog Name Blog"
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    color: #fff; // Assuming dark theme
+  }
+  .site-description {
+    font-size: 1.2rem;
+    color: #ccc;
+    margin-bottom: 2rem;
+  }
+  .section-divider {
+    border: 0;
+    height: 1px;
+    background: #444;
+    margin: 2rem 0;
+  }
+}
+
+.post-list {
+  list-style: none;
+  padding-left: 0;
+
+  li {
+    margin-bottom: 2.5rem; // More spacing between post entries
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #333; // Separator for posts
+
+    &:last-child {
+      border-bottom: none; // No border for the last item
+    }
+  }
+
+  .post-link {
+    font-size: 1.75rem; // Larger title for post links
+    color: #80caff; // Your link color
+    text-decoration: none;
+    display: block; // Make the whole title area clickable
+    &:hover {
+      color: #a6daff;
+      text-decoration: underline;
+    }
+  }
+
+  .post-meta {
+    display: block;
+    font-size: 0.9rem;
+    color: #999; // Lighter color for meta data
+    margin-top: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+  .post-author {
+    font-style: italic;
+    color: #bbb;
+    margin-left: 10px;
+  }
+  .post-excerpt {
+    color: #ddd; // Excerpt text color
+    font-size: 1rem;
+    line-height: 1.6;
+  }
 }
 
 // Content wrapper - Minima uses .wrapper
@@ -122,35 +187,188 @@ h6 {
   }
 }
 
-// Code blocks (Minima uses Rouge for syntax highlighting)
-// These styles target the container and the code itself.
-pre,
-code {
-  background-color: #1e1e1e;
-  color: #d4d4d4;
-  border: 1px solid #333;
-  border-radius: 4px;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier,
-    monospace; // Monospace font stack
-  font-size: 0.9em; // Slightly smaller font for code
+.post-header-academic {
+  margin-bottom: 2rem;
+  text-align: left; // Or 'center' if you prefer for title/author
+
+  .post-title-academic {
+    font-size: 2.8rem; // Prominent title
+    font-weight: 600; // Bolder for academic feel
+    color: #fff;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+  }
+
+  .post-meta-academic {
+    font-size: 1rem;
+    color: #bbb;
+    margin-bottom: 1.5rem;
+  }
+
+  .post-abstract {
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: #1a1a1a; // Slightly different background for abstract
+    border-left: 3px solid #555; // Accent border
+
+    h2 {
+      // "Abstract" heading
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #ddd;
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+    }
+    p {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #ccc;
+      margin-bottom: 0;
+    }
+  }
+
+  .post-keywords {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-bottom: 2rem;
+    strong {
+      color: #ccc;
+    }
+  }
 }
 
-pre {
-  padding: 1em;
-  overflow-x: auto; // Allow horizontal scrolling for long code lines
+.section-divider-post {
+  border: 0;
+  height: 1px;
+  background: #444;
+  margin: 1rem 0 2rem 0;
 }
 
-// If <code> is inside <pre>, avoid double styling
-pre code {
-  background-color: transparent;
-  border: none;
-  padding: 0;
-  color: inherit; // Inherit color from <pre> which might be styled by syntax highlighter
+.post-content-academic {
+  line-height: 1.8; // Slightly more spacious line height
+  font-size: 1.1rem; // Ensure readability
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    // Section headings within the content
+    font-weight: 600; // Bolder section headings
+    color: #eee;
+    margin-top: 2.5rem; // More space above headings
+    margin-bottom: 1rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #444; // Underline for section headings
+  }
+
+  h1 {
+    font-size: 2.2rem;
+  }
+  h2 {
+    font-size: 1.8rem;
+  }
+  h3 {
+    font-size: 1.5rem;
+  }
+
+  figure {
+    margin: 2rem 0;
+    img {
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      border: 1px solid #444; // Optional border for images
+    }
+    figcaption {
+      font-size: 0.9rem;
+      color: #aaa;
+      text-align: center;
+      margin-top: 0.5rem;
+      font-style: italic;
+    }
+  }
+
+  // Code blocks (Minima uses Rouge for syntax highlighting)
+  // These styles target the container and the code itself.
+  pre,
+  code {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #333;
+    border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier,
+      monospace; // Monospace font stack
+    font-size: 0.9em; // Slightly smaller font for code
+  }
+
+  pre {
+    padding: 1em;
+    overflow-x: auto; // Allow horizontal scrolling for long code lines
+  }
+
+  // If <code> is inside <pre>, avoid double styling
+  pre code {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    color: inherit; // Inherit color from <pre> which might be styled by syntax highlighter
+  }
+
+  // Basic styling for inline code
+  code {
+    padding: 0.2em 0.4em;
+  }
 }
 
-// Basic styling for inline code
-code {
-  padding: 0.2em 0.4em;
+@media screen and (max-width: 800px) {
+  // Matches Minima's breakpoint for wrapper
+  .post-header-academic {
+    .post-title-academic {
+      font-size: 2.2rem; // Slightly smaller title on smaller screens
+    }
+    .post-meta-academic {
+      font-size: 0.9rem;
+    }
+    .post-abstract h2 {
+      font-size: 1.1rem;
+    }
+  }
+
+  .post-content-academic {
+    font-size: 1rem; // Adjust base font size for mobile readability
+    h1 {
+      font-size: 1.9rem;
+    }
+    h2 {
+      font-size: 1.6rem;
+    }
+    h3 {
+      font-size: 1.3rem;
+    }
+  }
+
+  .home-content {
+    .page-heading {
+      font-size: 2rem;
+    }
+    .post-list .post-link {
+      font-size: 1.5rem;
+    }
+  }
+}
+
+@media screen and (max-width: 600px) {
+  // Minima's smaller breakpoint
+  // Add any further refinements for very small screens
+  .wrapper {
+    // Further reduce padding if needed on very small screens
+    padding-left: 10px;
+    padding-right: 10px;
+  }
 }
 
 // --- End of Custom Styles ---
