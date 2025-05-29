@@ -1,0 +1,37 @@
+# Site settings
+title: Asrar's Blog # Change this to your blog's title
+email: your-email@example.com # Optional
+description: >- # Your blog's description
+  Write an awesome description for your new blog here.
+baseurl: "" # IMPORTANT: For a custom domain like blog.asrar.xyz, this should be an empty string.
+url: "https://blog.asrar.xyz" # Your blog's full URL
+
+# Theme (we're starting with Minima)
+theme: minima
+
+# Plugins (these are good defaults)
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# Build settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+
+# Exclude from processing
+# These files/folders will not be processed by Jekyll
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - .idea/
+  - .gitattributes
+  - README.md # You might want to keep your README separate
+  # Add any other files or folders you want to exclude
