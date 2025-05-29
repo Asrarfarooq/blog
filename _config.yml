@@ -1,8 +1,8 @@
 # Site settings
-title: Asrar's Blog # Change this to your blog's title
-email: your-email@example.com # Optional
+title: Qubit
+email: asrarfarooq@google.com
 description: >- # Your blog's description
-  Write an awesome description for your new blog here.
+  Exploring the frontiers of AI, technology, and insights
 baseurl: "" # IMPORTANT: For a custom domain like blog.asrar.xyz, this should be an empty string.
 url: "https://blog.asrar.xyz" # Your blog's full URL
 
