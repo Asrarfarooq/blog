@@ -1,10 +1,10 @@
 ---
-layout: default # Or a custom layout you create, e.g., 'page' or 'home_custom'
-title: Home
+layout: default
+title: Home # SEO Title for the homepage
 ---
 
 <div class="home-content">
-  <p class="site-description">{{ site.description | escape }}</p>
+<p class="site-description">{{ site.description | escape }}</p>
 
   <hr class="section-divider">
 
@@ -22,7 +22,9 @@ title: Home
 </h3>
 <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }}</span>
 {% if post.author %}
-<span class="post-author">by {{ post.author }}</span>
+<span class="post-author">by {{ page.author | default: post.author | default: site.author | escape }}</span>
+{% elsif site.author %}
+<span class="post-author">by {{ site.author | escape }}</span>
 {% endif %}
 
           {% if post.excerpt %}
@@ -34,9 +36,9 @@ title: Home
       {% endfor %}
     </ul>
 
-    {% else %}
-    <p>No posts found yet. Stay tuned!</p>
+{% else %}
 
+<p>No posts found yet. Stay tuned!</p>
 {% endif %}
 
 </div>
