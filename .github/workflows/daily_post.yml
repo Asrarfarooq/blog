@@ -27,56 +27,24 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
         
-      # -----------------------------------------------
-      # --- FINAL FIX: CONFIGURE, INSTALL, and PULL ---
-      # -----------------------------------------------
-      - name: Configure, Install, and Pull Ollama
-        run: |
-          # 1. Configure the Ollama service to listen on all interfaces.
-          # This is a robust setting for CI/CD environments and resolves internal networking issues.
-          export OLLAMA_HOST=0.0.0.0
+      # -----------------------------------------------------------------
+      # --- FINAL, ROBUST FIX: Use the Official Setup Ollama Action ---
+      # -----------------------------------------------------------------
+      - name: Setup and Start Ollama
+        uses: ai-action/setup-ollama@v1
+        with:
+          # This will download the specific version of Ollama and start it as a background service.
+          # The action handles all networking and process management.
+          ollama-version: '0.1.42' # Pinning to a known stable version
           
-          # 2. Install Ollama. The installer will respect the OLLAMA_HOST variable for the systemd service.
-          curl -fsSL https://ollama.com/install.sh | sh
-          
-          # 3. Wait for the API to be fully responsive on the new host.
-          echo "Waiting up to 60 seconds for auto-started Ollama service..."
-          for i in {1..12}; do
-            # Note: We now curl 0.0.0.0 to match the service configuration
-            if curl -s --fail http://0.0.0.0:11434/api/tags > /dev/null; then
-              echo "Ollama API is fully responsive!"
-              break
-            fi
-            echo "Attempt $i: Ollama not ready yet. Waiting 5s..."
-            sleep 5
-            if [ $i -eq 12 ]; then
-              echo "Error: Ollama service failed to start within the timeout."
-              sudo journalctl -u ollama.service --no-pager -n 100
-              exit 1
-            fi
-          done
+          # This will pull the model and make it available for your script.
+          # The action will wait until the pull is complete.
+          models: |
+            phi3:3.8b-mini-4k-instruct
 
-          # 4. Pull the model using the REST API, now targeting 0.0.0.0.
-          echo "Pulling 'phi3:3.8b-mini-4k-instruct' model directly via REST API..."
-          curl http://0.0.0.0:11434/api/pull -d '{
-            "name": "phi3:3.8b-mini-4k-instruct",
-            "stream": false
-          }'
-
-          # 5. Verify the model was downloaded successfully.
-          echo ""
-          echo "Verifying model installation..."
-          if ollama list | grep -q "phi3:3.8b-mini-4k-instruct"; then
-            echo "✅ Model successfully pulled and verified."
-          else
-            echo "❌ VERIFICATION FAILED. Model was not found after the API pull command."
-            echo "Dumping Ollama service logs for final diagnostics:"
-            sudo journalctl -u ollama.service --no-pager --all -n 200
-            exit 1
-          fi
-
-          echo "Model is ready. Proceeding to content generation."
-          
+      - name: Verify Ollama is Running
+        run: ollama list
+        
       - name: Run Content Generation Script (Daily)
         run: python automation_script.py --type daily
         env:
