@@ -27,16 +27,23 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      # --- FREE LLM SETUP: Run Ollama inside the runner ---
-      - name: Start Ollama Service and Pull Llama 3
-        uses: ai-actions/ollama-action@v1 
-        with:
-          model: llama3:8b
-        env:
-          MODEL_NAME: llama3:8b 
+      # -----------------------------------------------
+      # --- FIX: Direct Installation of Ollama for reliable localhost:11434 access ---
+      # -----------------------------------------------
+      - name: Install Ollama Client
+        run: curl -fsSL https://ollama.com/install.sh | sh 
+
+      - name: Pull and Start Llama 3 Model Service
+        run: |
+          # Start Ollama service in the background
+          ollama serve &
+          # Wait for the service to initialize and pull the model
+          sleep 10 
+          ollama pull llama3:8b
+          sleep 5
 
       - name: Run Content Generation Script (Weekly)
-        # Calls the script and passes the 'weekly' argument
+        # Passes the 'weekly' argument to trigger the roundup logic
         run: python automation_script.py --type weekly
         env:
           GH_TOKEN_AUTO_COMMIT: ${{ secrets.GH_TOKEN_AUTO_COMMIT }}
