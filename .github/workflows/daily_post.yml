@@ -4,18 +4,17 @@ on:
   schedule:
     # Runs twice daily at 8:30 AM CDT (13:30 UTC) and 3:30 PM CDT (20:30 UTC)
     - cron: '30 13,20 * * *' 
-  workflow_dispatch: # Allows manual testing
+  workflow_dispatch: 
 
 jobs:
   generate_and_publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Essential for the Python script to commit/push
+      contents: write 
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        # fetch-depth: 0 is required for GitPython to access history
         with:
           token: ${{ secrets.GH_TOKEN_AUTO_COMMIT }} 
           fetch-depth: 0 
@@ -28,25 +27,34 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
         
-      # -----------------------------------------------
-      # --- FIX: Direct Installation of Ollama for reliable localhost:11434 access ---
-      # -----------------------------------------------
-      - name: Install Ollama Client
-        run: curl -fsSL https://ollama.com/install.sh | sh 
-
-      - name: Pull and Start Llama 3 Model Service
+      # --- FIXED: Robust Ollama Startup with Health Check ---
+      - name: Pull and Start LLM Service with Health Check
         run: |
-          # Start Ollama service in the background
+          # 1. Start Ollama service in the background
           ollama serve &
-          # Wait for the service to initialize and pull the model
-          sleep 10 
-          ollama pull llama3:8b
-          sleep 5
+          
+          echo "Waiting up to 60 seconds for Ollama service to start..."
+          # 2. Wait for the service to become available on port 11434
+          for i in {1..12}; do
+            if curl -s http://localhost:11434 > /dev/null; then
+              echo "Ollama is running!"
+              break
+            fi
+            echo "Attempt $i: Ollama not ready yet. Waiting 5s..."
+            sleep 5
+            if [ $i -eq 12 ]; then
+              echo "Error: Ollama service failed to start within the timeout."
+              exit 1
+            fi
+          done
+
+          # 3. Pull the smaller model for better performance
+          echo "Pulling phi3:3.8b-mini-4k-instruct model..."
+          ollama pull phi3:3.8b-mini-4k-instruct
+          
+          echo "Model ready. Proceeding to content generation."
           
       - name: Run Content Generation Script (Daily)
-        # The script communicates with localhost:11434, generates content, and pushes
         run: python automation_script.py --type daily
         env:
           GH_TOKEN_AUTO_COMMIT: ${{ secrets.GH_TOKEN_AUTO_COMMIT }}
-          
-      # The successful push (handled by the script) will trigger the Jekyll build.

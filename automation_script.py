@@ -10,9 +10,9 @@ import time
 import random
 
 # --- Configuration ---
-# Ollama runs on port 11434 inside the GitHub Actions runner
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "llama3:8b" 
+# FIXED: Using Phi-3 Mini for maximum speed and stability on GitHub runners
+MODEL_NAME = "phi3:3.8b-mini-4k-instruct" 
 REPO_PATH = os.getcwd() 
 
 # --- Persona and Structure Prompt ---
@@ -65,39 +65,35 @@ def get_existing_titles():
 
 def get_trending_topic(existing_titles):
     """Fetches trending topics using Pytrends and ensures non-repetition."""
-    # We use a broad seed list based on user's interests
+    
+    # ADDED: Small sleep to help with potential rate-limiting/connection issues
+    time.sleep(2) 
     seed_keywords = ["MLOps", "LLM Fine-tuning", "GKE Autopilot", "JAX XLA", "Cloud Data Pipeline"]
     
     try:
-        pytrends = TrendReq(hl='en-US', tz=360) # CDT is UTC-5, this is UTC+6. Not critical for trend data.
+        pytrends = TrendReq(hl='en-US', tz=360) 
         pytrends.build_payload(seed_keywords, cat=0, timeframe='now 1-d', geo='US', gprop='news') 
-        time.sleep(5) # Respect Pytrends rate limits
+        time.sleep(5) 
         
-        # Get trending news queries for freshness
         trending = pytrends.trending_searches(pn='united_states')
         
-        # Prioritize topics from the 'Related Queries' or Trending News
         potential_topics = []
         if not trending.empty:
-             # Take top 10 from general trending searches
             potential_topics.extend(trending[0].head(10).tolist())
         
         # Add related queries for depth
         related = pytrends.related_queries()
         for kw in seed_keywords:
             try:
-                # Use 'rising' queries for freshness
                 rising_queries = related.get(kw, {}).get('rising', pd.DataFrame()).head(5)['query'].tolist()
                 potential_topics.extend(rising_queries)
             except Exception:
                 continue
 
-        # Clean duplicates and check against history
         unique_topics = sorted(list(set(potential_topics)), key=lambda x: len(x), reverse=True)
 
         for topic in unique_topics:
             topic_slug = slugify(topic)
-            # Only use a topic if its slug hasn't appeared recently
             if topic_slug not in existing_titles and topic.lower() not in [t.lower() for t in existing_titles]:
                 print(f"Selected fresh topic: {topic}")
                 return topic
@@ -117,7 +113,6 @@ def get_trending_topic(existing_titles):
 def generate_post_content(topic, is_roundup=False):
     """Calls the Ollama LLM API to generate content based on the topic."""
     
-    # Use Austin's time zone for the Jekyll post date stamp
     tz_info = datetime.timezone(datetime.timedelta(hours=-5), name='CDT')
     current_time = datetime.datetime.now(tz_info)
     current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S -0500")
@@ -125,13 +120,14 @@ def generate_post_content(topic, is_roundup=False):
     if is_roundup:
         user_prompt = f"""
         Generate the weekly 'Qubit Tech Roundup' for the most important news from the past 7 days (ending {current_time.strftime('%B %d, %Y')}).
-        Structure it into three sections: 1. ## AI/ML Breakthroughs 2. ## Cloud and DevOps Updates 3. ## Cybersecurity and Policy.
+        The abstract should summarize the three biggest themes.
+        Structure: 1. ## AI/ML Breakthroughs 2. ## Cloud and DevOps Updates 3. ## Cybersecurity and Policy.
         For each section, provide 3-4 news items with a clear summary and follow it with a *personal, italicized, one-sentence opinion* from 'Asrar'. 
         """
     else:
-        user_prompt = f"Write an 800-word deep-dive technical blog post on the current hot topic: '{topic}'. Use the date {current_time_str} in the front matter. Adhere strictly to the required persona and detailed structure."
+        # REDUCED complexity requested from LLM to help with timeouts
+        user_prompt = f"Write a deep-dive technical blog post (around 500-600 words) on the current hot topic: '{topic}'. Use the date {current_time_str} in the front matter. Adhere strictly to the required persona and detailed structure."
 
-    # Final system prompt with dynamic date
     final_system_prompt = SYSTEM_PROMPT.replace("YYYY-MM-DD HH:MM:SS -0500", current_time_str)
 
     try:
@@ -142,17 +138,25 @@ def generate_post_content(topic, is_roundup=False):
                 "prompt": user_prompt,
                 "system": final_system_prompt,
                 "stream": False,
-                "options": {"temperature": 0.8}
+                "options": {"temperature": 0.7}
             },
             timeout=300
         )
         response.raise_for_status()
-        generated_text = response.json()['response']
+        
+        generated_text = response.json().get('response', '').strip()
+        
+        # FIXED: Check if the LLM returned meaningful content (starts with YAML frontmatter)
+        if not generated_text.startswith('---'):
+             raise ValueError("LLM returned malformed content (missing YAML front matter).")
+             
         return generated_text
         
-    except requests.exceptions.RequestException as e:
-        # Fallback: create a post logging the failure
-        print(f"Ollama API call failed: {e}")
+    except (requests.exceptions.RequestException, ValueError) as e:
+        # FIXED: Fallback to a controlled failure post on any LLM-related exception
+        print(f"Ollama API call failed or returned bad content: {e}")
+        
+        # Ensure the failure post itself has a valid title structure for the commit step
         return f"""---
 layout: post
 title: "AUTO-FAIL: LLM Content Generation Failed"
@@ -174,10 +178,15 @@ def create_and_commit_post(markdown_content):
     
     # 1. Extract post details for filename and commit message
     title_match = re.search(r'title:\s*["\']?([^"\']+)["\']?', markdown_content)
-    if not title_match:
-        raise ValueError("Could not extract title from generated content for commit.")
+    
+    # FIXED: Safe title extraction with a guaranteed default if regex fails
+    if title_match:
+        title = title_match.group(1).strip()
+    else:
+        # Default title is used if the LLM generation completely failed to produce YAML
+        title = "Automation Error Post"
+        print("Warning: Title extraction failed; using default error title.")
 
-    title = title_match.group(1).strip()
     now = datetime.datetime.now().strftime("%Y-%m-%d")
     filename = f"{now}-{slugify(title)}.md"
     filepath = os.path.join("_posts", filename)
@@ -190,26 +199,20 @@ def create_and_commit_post(markdown_content):
     # 3. Commit using GitPython
     try:
         repo = Repo(REPO_PATH)
-        
-        # Add the new file to the index
         repo.index.add([filepath])
         
-        # Set the commit identity
         committer = "Qubit Automation Bot <asrar.farooq.automation@qubit.xyz>"
         commit_message = f"🤖 AUTO: New Post - {title}"
         
         repo.index.commit(commit_message, author=committer, committer=committer)
         
-        # Push the commit using the PAT
         token = os.getenv('GH_TOKEN_AUTO_COMMIT')
         if not token:
              raise ValueError("GH_TOKEN_AUTO_COMMIT secret is missing.")
         
-        # Create an authenticated URL for pushing
+        # Push using the PAT
         remote = repo.remote('origin')
         push_url = remote.url.replace("https://github.com/", f"https://x-access-token:{token}@github.com/")
-        
-        # Push to the current branch (HEAD)
         remote.push(refspec=repo.head.reference, url=push_url)
         
         print(f"Successfully committed and pushed new post: {title}")
