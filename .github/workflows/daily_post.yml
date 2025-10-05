@@ -52,9 +52,6 @@ jobs:
       # Step 3: Now that the server is ready, pull the model (FIXED MODEL NAME).
       - name: Pull Ollama Model
         run: ollama pull phi3:mini
-
-      - name: Check Available Phi3 Models
-        run: ollama search phi3
         
       # Step 4: Verify the model is present before running the Python script.
       - name: Verify Model was Pulled
