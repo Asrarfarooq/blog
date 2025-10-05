@@ -33,16 +33,17 @@ jobs:
       - name: Install Ollama Client (Fixes 'command not found')
         run: curl -fsSL https://ollama.com/install.sh | sh 
 
+      # --- FIXED: Service Control (Remove Redundant 'ollama serve &') ---
       - name: Pull and Start LLM Service with Health Check
         run: |
-          # 1. Start Ollama service in the background
-          ollama serve &
+          # 1. Ollama was started automatically by the previous step's installer.
+          #    We use a health check to wait for the auto-started service to be ready.
           
-          echo "Waiting up to 60 seconds for Ollama service to start..."
-          # 2. Wait for the service to become available on port 11434
+          echo "Waiting up to 60 seconds for auto-started Ollama service on port 11434..."
+          # 2. Robust Health Check Loop
           for i in {1..12}; do
             if curl -s http://localhost:11434 > /dev/null; then
-              echo "Ollama is running!"
+              echo "Ollama API is running!"
               break
             fi
             echo "Attempt $i: Ollama not ready yet. Waiting 5s..."
@@ -53,8 +54,9 @@ jobs:
             fi
           done
 
-          # 3. Pull the smaller model for better performance
+          # 3. Pull the required model (phi3:3.8b-mini-4k-instruct)
           echo "Pulling phi3:3.8b-mini-4k-instruct model..."
+          # We use the now-running service to pull the model
           ollama pull phi3:3.8b-mini-4k-instruct
           
           echo "Model ready. Proceeding to content generation."
