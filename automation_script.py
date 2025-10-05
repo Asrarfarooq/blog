@@ -11,7 +11,6 @@ import random
 
 # --- Configuration ---
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
-# FIXED: Using Phi-3 Mini for maximum speed and stability on GitHub runners
 MODEL_NAME = "phi3:3.8b-mini-4k-instruct" 
 REPO_PATH = os.getcwd() 
 
@@ -54,19 +53,17 @@ def get_existing_titles():
         return titles
 
     for filename in os.listdir(posts_dir):
-        if filename.endswith(".md") or filename.endswith(".markdown"):
+        if filename.endswith((".md", ".markdown")):
             # Extract slug from YYYY-MM-DD-slug.md
             parts = filename.split('-')
             if len(parts) >= 4:
-                # Assuming the first three parts are the date components
-                title_slug = "-".join(parts[3:]).replace(".md", "").replace(".markdown", "")
+                title_slug = "-".join(parts[3:]).rsplit('.', 1)[0]
                 titles.add(title_slug)
     return titles
 
 def get_trending_topic(existing_titles):
     """Fetches trending topics using Pytrends and ensures non-repetition."""
     
-    # ADDED: Small sleep to help with potential rate-limiting/connection issues
     time.sleep(2) 
     seed_keywords = ["MLOps", "LLM Fine-tuning", "GKE Autopilot", "JAX XLA", "Cloud Data Pipeline"]
     
@@ -81,7 +78,6 @@ def get_trending_topic(existing_titles):
         if not trending.empty:
             potential_topics.extend(trending[0].head(10).tolist())
         
-        # Add related queries for depth
         related = pytrends.related_queries()
         for kw in seed_keywords:
             try:
@@ -125,7 +121,6 @@ def generate_post_content(topic, is_roundup=False):
         For each section, provide 3-4 news items with a clear summary and follow it with a *personal, italicized, one-sentence opinion* from 'Asrar'. 
         """
     else:
-        # REDUCED complexity requested from LLM to help with timeouts
         user_prompt = f"Write a deep-dive technical blog post (around 500-600 words) on the current hot topic: '{topic}'. Use the date {current_time_str} in the front matter. Adhere strictly to the required persona and detailed structure."
 
     final_system_prompt = SYSTEM_PROMPT.replace("YYYY-MM-DD HH:MM:SS -0500", current_time_str)
@@ -146,17 +141,14 @@ def generate_post_content(topic, is_roundup=False):
         
         generated_text = response.json().get('response', '').strip()
         
-        # FIXED: Check if the LLM returned meaningful content (starts with YAML frontmatter)
         if not generated_text.startswith('---'):
              raise ValueError("LLM returned malformed content (missing YAML front matter).")
              
         return generated_text
         
     except (requests.exceptions.RequestException, ValueError) as e:
-        # FIXED: Fallback to a controlled failure post on any LLM-related exception
         print(f"Ollama API call failed or returned bad content: {e}")
         
-        # Ensure the failure post itself has a valid title structure for the commit step
         return f"""---
 layout: post
 title: "AUTO-FAIL: LLM Content Generation Failed"
@@ -173,11 +165,11 @@ The attempt to generate content via Ollama failed with the error: `{e}`
 """
 
 
-# --- CORRECTED FUNCTION ---
 def create_and_commit_post(markdown_content):
     """Uses GitPython to commit the new post."""
     
     title_match = re.search(r'title:\s*["\']?([^"\']+)["\']?', markdown_content)
+    
     if title_match:
         title = title_match.group(1).strip()
     else:
@@ -189,21 +181,18 @@ def create_and_commit_post(markdown_content):
     filepath = os.path.join("_posts", filename)
 
     os.makedirs("_posts", exist_ok=True)
-    with open(filepath, "w") as f:
+    with open(filepath, "w", encoding='utf-8') as f:
         f.write(markdown_content)
     
     try:
         repo = Repo(REPO_PATH)
         repo.index.add([filepath])
         
-        # --- FIX: Create Actor objects for author and committer ---
         author = Actor("Qubit Automation Bot", "asrar.farooq.automation@qubit.xyz")
         committer = Actor("Qubit Automation Bot", "asrar.farooq.automation@qubit.xyz")
-        # --- END FIX ---
-
+        
         commit_message = f"🤖 AUTO: New Post - {title}"
         
-        # Use the Actor objects in the commit call
         repo.index.commit(commit_message, author=author, committer=committer)
         
         token = os.getenv('GH_TOKEN_AUTO_COMMIT')

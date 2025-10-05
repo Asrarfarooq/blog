@@ -27,22 +27,26 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
         
-      # Using the official action to set up the service AND pull the model
+      # Step 1: Use the official action to install and start the Ollama service.
+      # This action's only job is to get the server running in the background.
       - name: Setup and Start Ollama
         uses: ai-action/setup-ollama@v1
-        with:
-          models: |
-            phi3:3.8b-mini-4k-instruct
 
+      # Step 2: Use the Ollama CLI to pull the required model.
+      # This command communicates with the background server started in the previous step.
+      - name: Pull Ollama Model
+        run: ollama pull phi3:3.8b-mini-4k-instruct
+        
+      # Step 3: Verify that the model is now present.
       - name: Verify Model was Pulled
         run: |
           echo "Running 'ollama list' to verify model presence..."
           ollama list
           if ! ollama list | grep -q "phi3:3.8b-mini-4k-instruct"; then
-            echo "::error::Verification failed! The required model was not pulled by the setup action."
+            echo "::error::Verification failed! The model was not found after the pull command."
             exit 1
           fi
-          echo "Model verification successful."
+          echo "✅ Model verification successful."
 
       - name: Run Content Generation Script (Weekly)
         run: python automation_script.py --type weekly
