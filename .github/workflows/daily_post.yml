@@ -28,18 +28,22 @@ jobs:
         run: pip install -r requirements.txt
         
       # -----------------------------------------------
-      # --- FIX: OLLAMA INSTALLATION ---
+      # --- FINAL FIX: CONFIGURE, INSTALL, and PULL ---
       # -----------------------------------------------
-      - name: Install Ollama Client (Fixes 'command not found')
-        # This downloads and installs the executable, making it available for the next steps
-        run: curl -fsSL https://ollama.com/install.sh | sh 
-
-      - name: Pull and Verify LLM via API
+      - name: Configure, Install, and Pull Ollama
         run: |
-          # 1. Ollama was started automatically. We use the same health check to wait for it.
+          # 1. Configure the Ollama service to listen on all interfaces.
+          # This is a robust setting for CI/CD environments and resolves internal networking issues.
+          export OLLAMA_HOST=0.0.0.0
+          
+          # 2. Install Ollama. The installer will respect the OLLAMA_HOST variable for the systemd service.
+          curl -fsSL https://ollama.com/install.sh | sh
+          
+          # 3. Wait for the API to be fully responsive on the new host.
           echo "Waiting up to 60 seconds for auto-started Ollama service..."
           for i in {1..12}; do
-            if curl -s --fail http://localhost:11434/api/tags > /dev/null; then
+            # Note: We now curl 0.0.0.0 to match the service configuration
+            if curl -s --fail http://0.0.0.0:11434/api/tags > /dev/null; then
               echo "Ollama API is fully responsive!"
               break
             fi
@@ -52,16 +56,14 @@ jobs:
             fi
           done
 
-          # 2. Pull the model using the REST API directly with curl.
-          # This is more robust than using the 'ollama pull' CLI command in a CI environment.
-          # The 'stream: false' option makes the command wait until the download is fully complete.
+          # 4. Pull the model using the REST API, now targeting 0.0.0.0.
           echo "Pulling 'phi3:3.8b-mini-4k-instruct' model directly via REST API..."
-          curl http://localhost:11434/api/pull -d '{
+          curl http://0.0.0.0:11434/api/pull -d '{
             "name": "phi3:3.8b-mini-4k-instruct",
             "stream": false
           }'
 
-          # 3. Verify that the model was downloaded and is now available.
+          # 5. Verify the model was downloaded successfully.
           echo ""
           echo "Verifying model installation..."
           if ollama list | grep -q "phi3:3.8b-mini-4k-instruct"; then
