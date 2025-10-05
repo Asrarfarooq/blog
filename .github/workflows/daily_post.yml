@@ -68,7 +68,7 @@ jobs:
           git config --global user.name "Qubit Automation Bot"
           git config --global user.email "asrar.farooq.automation@qubit.xyz"
           
-      - name: Run Content Generation Script (Daily)
-        run: python automation_script.py --type daily
+      - name: Run Content Generation Script
+        run: python automation_script.py
         env:
           GH_TOKEN_AUTO_COMMIT: ${{ secrets.GH_TOKEN_AUTO_COMMIT }}
