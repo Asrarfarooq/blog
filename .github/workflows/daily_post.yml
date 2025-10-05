@@ -34,15 +34,12 @@ jobs:
         # This downloads and installs the executable, making it available for the next steps
         run: curl -fsSL https://ollama.com/install.sh | sh 
 
-      - name: Pull and Start LLM Service with Health Check
+      - name: Pull LLM and Diagnose on Failure
         run: |
-          # 1. Ollama was started automatically by the previous step's installer.
-          #    We use a health check to wait for the auto-started service to be ready.
-          
-          echo "Waiting up to 60 seconds for auto-started Ollama service on port 11434..."
-          # 2. Robust Health Check Loop
+          # 1. Ollama was started automatically by the installer. We wait for it to be ready.
+          echo "Waiting up to 60 seconds for auto-started Ollama service..."
           for i in {1..12}; do
-            if curl -s http://localhost:11434 > /dev/null; then
+            if curl -s --fail http://localhost:11434 > /dev/null; then
               echo "Ollama API is running!"
               break
             fi
@@ -50,22 +47,40 @@ jobs:
             sleep 5
             if [ $i -eq 12 ]; then
               echo "Error: Ollama service failed to start within the timeout."
+              # --- DIAGNOSTIC ---
+              # If the service fails to even start, dump the logs.
+              echo "Dumping service logs after startup failure:"
+              sudo journalctl -u ollama.service --no-pager -n 100
               exit 1
             fi
           done
 
-          # --- FIX ---
-          # Add a 5-second delay to allow the Ollama service to fully initialize
-          # before we ask it to download a large model. This prevents the race condition.
-          echo "Service is up. Waiting 5 seconds for full initialization..."
+          # 2. Add a final delay for robustness.
+          echo "Service is up. Waiting an extra 5 seconds for full initialization..."
           sleep 5
 
-          # 3. Pull the required model (phi3:3.8b-mini-4k-instruct)
-          echo "Pulling phi3:3.8b-mini-4k-instruct model..."
-          # We use the now-running service to pull the model
-          ollama pull phi3:3.8b-mini-4k-instruct
+          # 3. Attempt to pull the model. If it fails (thanks to '||'), run our diagnostic commands.
+          echo "Attempting to pull the phi3 model..."
+          ollama pull phi3:3.8b-mini-4k-instruct || {
+            echo "-----------------------------------------------------"
+            echo "--> Ollama pull FAILED. Capturing diagnostic info..."
+            echo "-----------------------------------------------------"
+            
+            echo "--> 1. Checking outbound connectivity to ollama.com..."
+            curl -v https://ollama.com
+            
+            echo ""
+            echo "--> 2. DUMPING OLLAMA SERVICE LOGS (journalctl):"
+            # This is the most important command. It will show the internal error from the service.
+            sudo journalctl -u ollama.service --no-pager --all -n 200
+            
+            echo "-----------------------------------------------------"
+            echo "--> End of diagnostic info. Failing the workflow."
+            echo "-----------------------------------------------------"
+            exit 1
+          }
           
-          echo "Model ready. Proceeding to content generation."
+          echo "Model pulled successfully. Proceeding to content generation."
           
       - name: Run Content Generation Script (Daily)
         run: python automation_script.py --type daily
