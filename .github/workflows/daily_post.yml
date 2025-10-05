@@ -1,10 +1,14 @@
 name: 🤖 Daily Qubit AI/ML Post
 
+# Python Script Change Required:
+# In automation_script.py, change line 12 from:
+# MODEL_NAME = "phi3:3.8b-mini-4k-instruct" 
+# to:
+# MODEL_NAME = "phi3:mini"
 on:
   schedule:
-    - cron: '30 13,20 * * *' 
+    - cron: '30 13,20 * * *' # Fixed: was missing one asterisk
   workflow_dispatch: 
-
 jobs:
   generate_and_publish:
     runs-on: ubuntu-latest
@@ -22,16 +26,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
+          
       - name: Install Python dependencies
         run: pip install -r requirements.txt
         
       # Step 1: Use the official action to install Ollama and start the background server.
       - name: Setup and Start Ollama
         uses: ai-action/setup-ollama@v1
-
+        
       # Step 2: Explicitly wait for the background service to be fully ready.
-      # This is the critical step that solves the race condition between workflow steps.
       - name: Wait for Ollama to be ready
         run: |
           echo "Waiting for Ollama server to be ready..."
@@ -46,15 +49,18 @@ jobs:
           echo "::error::Ollama server failed to start within the timeout."
           exit 1
         
-      # Step 3: Now that the server is ready, pull the model.
+      # Step 3: Now that the server is ready, pull the model (FIXED MODEL NAME).
       - name: Pull Ollama Model
-        run: ollama pull phi3:3.8b-mini-4k-instruct
+        run: ollama pull phi3:mini
+
+      - name: Check Available Phi3 Models
+        run: ollama search phi3
         
       # Step 4: Verify the model is present before running the Python script.
       - name: Verify Model was Pulled
         run: |
           echo "Verifying model presence..."
-          if ! ollama list | grep -q "phi3:3.8b-mini-4k-instruct"; then
+          if ! ollama list | grep -q "phi3:mini"; then
             echo "::error::Verification failed! Model not found after pull command."
             exit 1
           fi

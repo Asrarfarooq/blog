@@ -11,7 +11,7 @@ import random
 
 # --- Configuration ---
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "phi3:3.8b-mini-4k-instruct" 
+MODEL_NAME = "phi3:mini" 
 REPO_PATH = os.getcwd() 
 
 # --- Persona and Structure Prompt ---
