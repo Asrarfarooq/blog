@@ -1,0 +1,47 @@
+name: 🤖 Daily Qubit AI/ML Post
+
+on:
+  schedule:
+    # Runs twice daily at 8:30 AM CDT (13:30 UTC) and 3:30 PM CDT (20:30 UTC)
+    - cron: '30 13,20 * * *' 
+  workflow_dispatch: # Allows manual testing
+
+jobs:
+  generate_and_publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Essential for the Python script to commit/push
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        # fetch-depth: 0 is required for GitPython to access history and check non-repetition
+        with:
+          token: ${{ secrets.GH_TOKEN_AUTO_COMMIT }} 
+          fetch-depth: 0 
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies (including GitPython, pytrends)
+        run: pip install -r requirements.txt
+        
+      # --- FREE LLM SETUP: Run Ollama inside the runner ---
+      # This step starts the Ollama server and pulls the Llama 3 model
+      - name: Start Ollama Service and Pull Llama 3
+        uses: ai-actions/ollama-action@v1 
+        with:
+          model: llama3:8b
+        env:
+          MODEL_NAME: llama3:8b 
+          
+      - name: Run Content Generation Script (Daily)
+        # The script handles topic selection, generation, file creation, and Git push
+        run: python automation_script.py --type daily
+        env:
+          GH_TOKEN_AUTO_COMMIT: ${{ secrets.GH_TOKEN_AUTO_COMMIT }}
+          
+      # The successful push (handled by the script) will automatically trigger 
+      # your existing Jekyll build/deployment Action.

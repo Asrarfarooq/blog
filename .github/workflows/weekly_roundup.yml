@@ -1,0 +1,42 @@
+name: 🗞️ Weekly Qubit Tech Roundup
+
+on:
+  schedule:
+    # Runs every Monday at 9:00 AM CDT (14:00 UTC)
+    - cron: '0 14 * * 1' 
+  workflow_dispatch:
+
+jobs:
+  generate_and_publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write 
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN_AUTO_COMMIT }}
+          fetch-depth: 0 
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # --- FREE LLM SETUP: Run Ollama inside the runner ---
+      - name: Start Ollama Service and Pull Llama 3
+        uses: ai-actions/ollama-action@v1 
+        with:
+          model: llama3:8b
+        env:
+          MODEL_NAME: llama3:8b 
+
+      - name: Run Content Generation Script (Weekly)
+        # Calls the script and passes the 'weekly' argument
+        run: python automation_script.py --type weekly
+        env:
+          GH_TOKEN_AUTO_COMMIT: ${{ secrets.GH_TOKEN_AUTO_COMMIT }}

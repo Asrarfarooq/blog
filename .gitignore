@@ -39,3 +39,11 @@ jspm_packages/
 *.orig
 *.rej
 _site/feed.xml
+
+# New automation entries
+/automation_venv
+*.pyc
+__pycache__/
+.mypy_cache
+.pytest_cache
+.ipynb_checkpoints
