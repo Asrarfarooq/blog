@@ -33,7 +33,6 @@ jobs:
       - name: Install Ollama Client (Fixes 'command not found')
         run: curl -fsSL https://ollama.com/install.sh | sh 
 
-      # --- FIXED: Service Control (Remove Redundant 'ollama serve &') ---
       - name: Pull and Start LLM Service with Health Check
         run: |
           # 1. Ollama was started automatically by the previous step's installer.
@@ -53,6 +52,12 @@ jobs:
               exit 1
             fi
           done
+
+          # --- FIX ---
+          # Add a 5-second delay to allow the Ollama service to fully initialize
+          # before we ask it to download a large model. This prevents the race condition.
+          echo "Service is up. Waiting 5 seconds for full initialization..."
+          sleep 5
 
           # 3. Pull the required model (phi3:3.8b-mini-4k-instruct)
           echo "Pulling phi3:3.8b-mini-4k-instruct model..."
