@@ -63,6 +63,11 @@ jobs:
           fi
           echo "✅ Model verification successful."
         
+      - name: Configure Git
+        run: |
+          git config --global user.name "Qubit Automation Bot"
+          git config --global user.email "asrar.farooq.automation@qubit.xyz"
+          
       - name: Run Content Generation Script (Daily)
         run: python automation_script.py --type daily
         env:
