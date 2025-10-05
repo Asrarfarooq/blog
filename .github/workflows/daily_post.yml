@@ -26,23 +26,36 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
         
-      # Step 1: Use the official action to install and start the Ollama service.
-      # This action's only job is to get the server running in the background.
+      # Step 1: Use the official action to install Ollama and start the background server.
       - name: Setup and Start Ollama
         uses: ai-action/setup-ollama@v1
 
-      # Step 2: Use the Ollama CLI to pull the required model.
-      # This command communicates with the background server started in the previous step.
+      # Step 2: Explicitly wait for the background service to be fully ready.
+      # This is the critical step that solves the race condition between workflow steps.
+      - name: Wait for Ollama to be ready
+        run: |
+          echo "Waiting for Ollama server to be ready..."
+          for i in {1..12}; do
+            if ollama list > /dev/null 2>&1; then
+              echo "✅ Ollama server is responsive."
+              exit 0
+            fi
+            echo "Attempt $i: Ollama not ready yet. Waiting 5s..."
+            sleep 5
+          done
+          echo "::error::Ollama server failed to start within the timeout."
+          exit 1
+        
+      # Step 3: Now that the server is ready, pull the model.
       - name: Pull Ollama Model
         run: ollama pull phi3:3.8b-mini-4k-instruct
         
-      # Step 3: Verify that the model is now present.
+      # Step 4: Verify the model is present before running the Python script.
       - name: Verify Model was Pulled
         run: |
-          echo "Running 'ollama list' to verify model presence..."
-          ollama list
+          echo "Verifying model presence..."
           if ! ollama list | grep -q "phi3:3.8b-mini-4k-instruct"; then
-            echo "::error::Verification failed! The model was not found after the pull command."
+            echo "::error::Verification failed! Model not found after pull command."
             exit 1
           fi
           echo "✅ Model verification successful."
