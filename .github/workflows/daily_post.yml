@@ -1,8 +1,8 @@
+# daily_post.yml
 name: 🤖 Daily Qubit AI/ML Post
 
 on:
   schedule:
-    # Runs twice daily at 8:30 AM CDT (13:30 UTC) and 3:30 PM CDT (20:30 UTC)
     - cron: '30 13,20 * * *' 
   workflow_dispatch: 
 
@@ -27,23 +27,22 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
         
-      # -----------------------------------------------------------------
-      # --- FINAL, ROBUST FIX: Use the Official Setup Ollama Action ---
-      # -----------------------------------------------------------------
+      # Using the official action to set up the service AND pull the model
       - name: Setup and Start Ollama
         uses: ai-action/setup-ollama@v1
         with:
-          # This will download the specific version of Ollama and start it as a background service.
-          # The action handles all networking and process management.
-          ollama-version: '0.1.42' # Pinning to a known stable version
-          
-          # This will pull the model and make it available for your script.
-          # The action will wait until the pull is complete.
           models: |
             phi3:3.8b-mini-4k-instruct
 
-      - name: Verify Ollama is Running
-        run: ollama list
+      - name: Verify Model was Pulled
+        run: |
+          echo "Running 'ollama list' to verify model presence..."
+          ollama list
+          if ! ollama list | grep -q "phi3:3.8b-mini-4k-instruct"; then
+            echo "::error::Verification failed! The required model was not pulled by the setup action."
+            exit 1
+          fi
+          echo "Model verification successful."
         
       - name: Run Content Generation Script (Daily)
         run: python automation_script.py --type daily

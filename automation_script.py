@@ -3,7 +3,7 @@ import datetime
 import re
 import requests
 import argparse
-from git import Repo, exc as git_exc
+from git import Repo, Actor, exc as git_exc
 from pytrends.request import TrendReq
 import pandas as pd
 import time
@@ -173,17 +173,14 @@ The attempt to generate content via Ollama failed with the error: `{e}`
 """
 
 
+# --- CORRECTED FUNCTION ---
 def create_and_commit_post(markdown_content):
     """Uses GitPython to commit the new post."""
     
-    # 1. Extract post details for filename and commit message
     title_match = re.search(r'title:\s*["\']?([^"\']+)["\']?', markdown_content)
-    
-    # FIXED: Safe title extraction with a guaranteed default if regex fails
     if title_match:
         title = title_match.group(1).strip()
     else:
-        # Default title is used if the LLM generation completely failed to produce YAML
         title = "Automation Error Post"
         print("Warning: Title extraction failed; using default error title.")
 
@@ -191,26 +188,28 @@ def create_and_commit_post(markdown_content):
     filename = f"{now}-{slugify(title)}.md"
     filepath = os.path.join("_posts", filename)
 
-    # 2. Write the file
     os.makedirs("_posts", exist_ok=True)
     with open(filepath, "w") as f:
         f.write(markdown_content)
     
-    # 3. Commit using GitPython
     try:
         repo = Repo(REPO_PATH)
         repo.index.add([filepath])
         
-        committer = "Qubit Automation Bot <asrar.farooq.automation@qubit.xyz>"
+        # --- FIX: Create Actor objects for author and committer ---
+        author = Actor("Qubit Automation Bot", "asrar.farooq.automation@qubit.xyz")
+        committer = Actor("Qubit Automation Bot", "asrar.farooq.automation@qubit.xyz")
+        # --- END FIX ---
+
         commit_message = f"🤖 AUTO: New Post - {title}"
         
-        repo.index.commit(commit_message, author=committer, committer=committer)
+        # Use the Actor objects in the commit call
+        repo.index.commit(commit_message, author=author, committer=committer)
         
         token = os.getenv('GH_TOKEN_AUTO_COMMIT')
         if not token:
              raise ValueError("GH_TOKEN_AUTO_COMMIT secret is missing.")
         
-        # Push using the PAT
         remote = repo.remote('origin')
         push_url = remote.url.replace("https://github.com/", f"https://x-access-token:{token}@github.com/")
         remote.push(refspec=repo.head.reference, url=push_url)
