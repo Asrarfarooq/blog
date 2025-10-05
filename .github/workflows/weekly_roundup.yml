@@ -27,7 +27,12 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      # --- FIXED: Robust Ollama Startup with Health Check ---
+      # -----------------------------------------------
+      # --- FIXED: Full Ollama Installation ---
+      # -----------------------------------------------
+      - name: Install Ollama Client (Fixes 'command not found')
+        run: curl -fsSL https://ollama.com/install.sh | sh 
+
       - name: Pull and Start LLM Service with Health Check
         run: |
           # 1. Start Ollama service in the background

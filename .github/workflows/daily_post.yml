@@ -27,7 +27,13 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
         
-      # --- FIXED: Robust Ollama Startup with Health Check ---
+      # -----------------------------------------------
+      # --- FIX: OLLAMA INSTALLATION ---
+      # -----------------------------------------------
+      - name: Install Ollama Client (Fixes 'command not found')
+        # This downloads and installs the executable, making it available for the next steps
+        run: curl -fsSL https://ollama.com/install.sh | sh 
+
       - name: Pull and Start LLM Service with Health Check
         run: |
           # 1. Start Ollama service in the background
@@ -48,7 +54,7 @@ jobs:
             fi
           done
 
-          # 3. Pull the smaller model for better performance
+          # 3. Pull the smaller, faster model (Phi-3 Mini)
           echo "Pulling phi3:3.8b-mini-4k-instruct model..."
           ollama pull phi3:3.8b-mini-4k-instruct
           
