@@ -3,6 +3,7 @@ import datetime
 import re
 import requests
 import argparse
+from zoneinfo import ZoneInfo
 from git import Repo, Actor, exc as git_exc
 from pytrends.request import TrendReq
 import pandas as pd
@@ -12,31 +13,31 @@ import random
 # --- Configuration ---
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "phi3:mini"
-REPO_PATH = os.getcwd() 
+REPO_PATH = os.getcwd()
+TIMEZONE = ZoneInfo("America/Chicago")  # Handles DST automatically
 
-# --- Persona and Structure Prompt ---
-SYSTEM_PROMPT = """
-You are 'Asrar Farooq', the enthusiastic and highly-skilled Cloud Infrastructure Engineer behind the 'Qubit' blog.
-Your audience is technical (engineers, data scientists) but appreciates clear, hands-on explanations.
-Your tone must be professional, structured, and informative.
+# --- Simplified Content-Only Prompt ---
+CONTENT_PROMPT = """You are Asrar Farooq, a Cloud Infrastructure Engineer writing technical content.
 
-FRONT MATTER REQUIREMENTS:
-- layout: post
-- author: "Asrar Farooq"
-- categories: Must include [ai, ml, cloud, tech] plus 1-2 specifics relevant to the topic.
-- abstract: A clear, compelling summary (under 160 characters).
-- keywords: A list of 8-10 long-tail SEO terms related to the topic.
-- date: Use the format YYYY-MM-DD HH:MM:SS -0500 (CDT timezone).
+Write ONLY the blog content sections below. Do NOT include any YAML, markdown headers, or front matter.
 
-BODY STRUCTURE REQUIREMENTS (USE HEADERS EXACTLY AS BELOW):
-1. **Introduction:** A friendly, engaging hook.
-2. **## Why This Matters (The Problem Statement)**: Explain the real-world challenge this topic addresses.
-3. **## Technical Deep Dive: [Specific Subtopic]**: Must include detailed concepts, utilizing **bolding** for keywords, and bullet points.
-4. **## The Code: [Language] Snippet**: Must contain a concrete, simple, and runnable code example (e.g., Python/Terraform/GKE manifest) in a fenced code block.
-5. **### The Qubit Takeaway**: A one-paragraph, personal, opinionated conclusion summarizing the impact.
+Write these 4 sections:
 
-Output ONLY the complete Jekyll Markdown file content, starting with the three dashes (---).
-"""
+1. INTRODUCTION (2-3 sentences): A friendly, engaging hook that draws readers in.
+
+2. WHY THIS MATTERS (1 paragraph): Explain the real-world problem or challenge this topic addresses.
+
+3. TECHNICAL DEEP DIVE (2-3 paragraphs): 
+   - Explain key concepts in detail
+   - Use specific technical terminology
+   - Include 3-4 bullet points highlighting important aspects
+   - After the bullets, include a simple code example in a fenced code block (```python or ```yaml or ```bash)
+   - The code should be practical and runnable (8-15 lines)
+
+4. THE QUBIT TAKEAWAY (1 paragraph): A personal, opinionated conclusion about why this matters for engineers.
+
+Write naturally and technically. Focus on practical insights engineers can use."""
+
 
 def slugify(title):
     """Converts a title to a URL-friendly slug."""
@@ -44,6 +45,7 @@ def slugify(title):
     title = re.sub(r'[^\w\s-]', '', title)
     title = re.sub(r'[-\s]+', '-', title)
     return title
+
 
 def get_existing_titles():
     """Reads existing post slugs from the _posts directory for repetition checking."""
@@ -54,79 +56,93 @@ def get_existing_titles():
 
     for filename in os.listdir(posts_dir):
         if filename.endswith((".md", ".markdown")):
-            # Extract slug from YYYY-MM-DD-slug.md
             parts = filename.split('-')
             if len(parts) >= 4:
                 title_slug = "-".join(parts[3:]).rsplit('.', 1)[0]
                 titles.add(title_slug)
     return titles
 
+
 def get_trending_topic(existing_titles):
-    """Fetches trending topics using Pytrends and ensures non-repetition."""
+    """Fetches tech-focused trending topics using Pytrends."""
     
-    time.sleep(2) 
-    seed_keywords = ["MLOps", "LLM Fine-tuning", "GKE Autopilot", "JAX XLA", "Cloud Data Pipeline"]
+    time.sleep(2)
+    tech_keywords = [
+        "MLOps", "LLM", "Kubernetes", "Terraform", "Docker",
+        "machine learning", "cloud computing", "DevOps", "microservices"
+    ]
     
     try:
-        pytrends = TrendReq(hl='en-US', tz=360) 
-        pytrends.build_payload(seed_keywords, cat=0, timeframe='now 1-d', geo='US', gprop='news') 
-        time.sleep(5) 
+        pytrends = TrendReq(hl='en-US', tz=360)
         
-        trending = pytrends.trending_searches(pn='united_states')
+        # Focus on tech-related queries only
+        pytrends.build_payload(tech_keywords, cat=0, timeframe='now 7-d', geo='US', gprop='')
+        time.sleep(3)
         
         potential_topics = []
-        if not trending.empty:
-            potential_topics.extend(trending[0].head(10).tolist())
         
+        # Get related queries for tech keywords (these are tech-focused)
         related = pytrends.related_queries()
-        for kw in seed_keywords:
+        for kw in tech_keywords:
             try:
-                rising_queries = related.get(kw, {}).get('rising', pd.DataFrame()).head(5)['query'].tolist()
-                potential_topics.extend(rising_queries)
-            except Exception:
+                if kw in related:
+                    top_queries = related[kw].get('top', pd.DataFrame())
+                    if not top_queries.empty:
+                        potential_topics.extend(top_queries['query'].head(3).tolist())
+                    
+                    rising_queries = related[kw].get('rising', pd.DataFrame())
+                    if not rising_queries.empty:
+                        potential_topics.extend(rising_queries['query'].head(3).tolist())
+            except Exception as e:
+                print(f"Error fetching related queries for {kw}: {e}")
                 continue
 
-        unique_topics = sorted(list(set(potential_topics)), key=lambda x: len(x), reverse=True)
+        # Remove duplicates and filter out very short queries
+        unique_topics = [t for t in set(potential_topics) if len(t) > 10]
+        unique_topics = sorted(unique_topics, key=lambda x: len(x), reverse=True)
 
+        # Check for fresh topics not in existing posts
         for topic in unique_topics:
             topic_slug = slugify(topic)
-            if topic_slug not in existing_titles and topic.lower() not in [t.lower() for t in existing_titles]:
-                print(f"✅ Selected fresh topic: {topic}")
+            if topic_slug not in existing_titles:
+                print(f"Selected fresh topic from trends: {topic}")
                 return topic
         
-        print("⚠️ All high-ranking topics were found in history. Using a backup subject.")
-        return random.choice([
-            "A hands-on guide to using Vertex AI Workbench for MLOps",
-            "Terraform modules for building secure Cloud Functions",
-            "The architecture behind high-performance LLM serving"
-        ])
+        print("Warning: No fresh trending topics found. Using curated topic.")
+        return get_curated_topic()
 
     except Exception as e:
-        print(f"⚠️ Pytrends/Trend fetching failed ({e}). Using hardcoded default.")
-        return "An analysis of the latest advancements in Llama 3 and its application in enterprise RAG systems."
+        print(f"Pytrends fetching failed ({e}). Using curated topic.")
+        return get_curated_topic()
 
 
-def generate_post_content(topic, is_roundup=False):
-    """Calls the Ollama LLM API to generate content based on the topic."""
+def get_curated_topic():
+    """Returns a curated tech topic when trends API fails or returns no results."""
+    curated_topics = [
+        "Optimizing Kubernetes Pod Autoscaling for Cost Efficiency",
+        "Implementing Zero-Trust Architecture in Cloud Environments",
+        "Real-Time Feature Engineering with Apache Beam and Dataflow",
+        "Securing CI/CD Pipelines with Policy-as-Code",
+        "Advanced Prompt Engineering Techniques for Production LLMs",
+        "Building Resilient Microservices with Circuit Breakers",
+        "Infrastructure Cost Attribution Using Terraform Tags",
+        "Monitoring ML Model Drift in Production Systems",
+        "Container Security Scanning in GitHub Actions",
+        "Implementing Multi-Region Database Replication Strategies"
+    ]
+    return random.choice(curated_topics)
+
+
+def generate_llm_content(topic):
+    """Calls Ollama to generate ONLY the blog content (no YAML)."""
     
-    tz_info = datetime.timezone(datetime.timedelta(hours=-5), name='CDT')
-    current_time = datetime.datetime.now(tz_info)
-    current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S -0500")
-    
-    if is_roundup:
-        user_prompt = f"""
-        Generate the weekly 'Qubit Tech Roundup' for the most important news from the past 7 days (ending {current_time.strftime('%B %d, %Y')}).
-        The abstract should summarize the three biggest themes.
-        Structure: 1. ## AI/ML Breakthroughs 2. ## Cloud and DevOps Updates 3. ## Cybersecurity and Policy.
-        For each section, provide 3-4 news items with a clear summary and follow it with a *personal, italicized, one-sentence opinion* from 'Asrar'. 
-        """
-    else:
-        user_prompt = f"Write a deep-dive technical blog post (around 500-600 words) on the current hot topic: '{topic}'. Use the date {current_time_str} in the front matter. Adhere strictly to the required persona and detailed structure."
+    user_prompt = f"""Write technical blog content about: "{topic}"
 
-    final_system_prompt = SYSTEM_PROMPT.replace("YYYY-MM-DD HH:MM:SS -0500", current_time_str)
+Focus on practical, hands-on information that engineers can apply immediately.
+Include real code examples and specific implementation details."""
 
-    print(f"🚀 Starting content generation for: {topic}")
-    print(f"⏱️  This may take 3-5 minutes on CPU...")
+    print(f"Starting content generation for: {topic}")
+    print(f"This may take 2-4 minutes on CPU...")
     
     try:
         start_time = time.time()
@@ -136,11 +152,11 @@ def generate_post_content(topic, is_roundup=False):
             json={
                 "model": MODEL_NAME,
                 "prompt": user_prompt,
-                "system": final_system_prompt,
+                "system": CONTENT_PROMPT,
                 "stream": False,
                 "options": {
                     "temperature": 0.7,
-                    "num_predict": 800,
+                    "num_predict": 600,
                     "top_k": 40,
                     "top_p": 0.9
                 }
@@ -149,93 +165,143 @@ def generate_post_content(topic, is_roundup=False):
         )
         
         elapsed = time.time() - start_time
-        print(f"✅ Generation completed in {elapsed:.1f} seconds")
+        print(f"Generation completed in {elapsed:.1f} seconds")
         
         response.raise_for_status()
+        content = response.json().get('response', '').strip()
         
-        generated_text = response.json().get('response', '').strip()
-        
-        if not generated_text.startswith('---'):
-             print("⚠️ LLM output missing front matter. Using fallback.")
-             raise ValueError("LLM returned malformed content (missing YAML front matter).")
+        if len(content) < 200:
+            raise ValueError("LLM returned very short content")
              
-        return generated_text
+        return content
         
-    except requests.exceptions.Timeout:
-        print(f"⚠️ LLM generation timed out after 7 minutes. Using fallback content.")
-        return create_fallback_content(topic, current_time_str)
-        
-    except (requests.exceptions.RequestException, ValueError) as e:
-        print(f"⚠️ Ollama API error: {e}")
-        return create_fallback_content(topic, current_time_str, error=str(e))
+    except (requests.exceptions.Timeout, requests.exceptions.RequestException, ValueError) as e:
+        print(f"LLM generation failed: {e}")
+        return None
 
 
-def create_fallback_content(topic, current_time_str, error=None):
-    """Creates a basic fallback post when LLM generation fails."""
-    error_msg = f"Error: {error}" if error else "Generation timeout occurred"
+def generate_fallback_content(topic):
+    """Creates professional fallback content when LLM fails."""
     
-    return f"""---
-layout: post
-title: "AI/ML Topic: {topic}"
-date: {current_time_str}
-author: "Asrar Farooq"
-categories: [ai, ml, cloud, tech, automation]
-abstract: "Exploring {topic} - automated content generation in progress."
-keywords: ["machine learning", "ai", "cloud computing", "mlops", "automation", "technical blog", "software engineering", "devops"]
----
+    return f"""## Introduction
 
-## Introduction
+Today we're exploring **{topic}**, an important area in modern cloud and AI infrastructure. This topic represents evolving best practices that engineering teams need to understand.
 
-Today we're exploring **{topic}**, a trending area in the AI/ML and cloud infrastructure space.
+## Why This Matters
 
-## Why This Matters (The Problem Statement)
+Organizations building production systems face challenges around scalability, reliability, and cost management. {topic} addresses these concerns by providing patterns and tools that have proven effective in real-world deployments.
 
-{topic} represents an important development in how we build and deploy modern systems. Organizations are increasingly looking for ways to leverage these technologies effectively.
+## Technical Deep Dive
 
-## Technical Deep Dive: Understanding the Fundamentals
+When implementing solutions in this space, several key considerations emerge:
 
-Key considerations include:
-- **Scalability**: Ensuring systems can handle growing demands
-- **Performance**: Optimizing for speed and efficiency  
-- **Reliability**: Building robust, fault-tolerant architectures
-- **Cost Management**: Balancing features with infrastructure costs
+- **Architecture Design**: Systems must be designed with failure modes in mind from the start
+- **Performance Optimization**: Careful attention to resource utilization and latency requirements
+- **Security Posture**: Defense-in-depth strategies across all infrastructure layers
+- **Operational Excellence**: Monitoring, logging, and incident response capabilities
 
-## The Code: Python Example
+Here's a basic example demonstrating core concepts:
 
 ```python
-# Basic example demonstrating core concepts
 import logging
+from typing import List, Dict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def process_data(input_data):
-    \"\"\"Process and transform input data.\"\"\"
-    logger.info(f"Processing {{len(input_data)}} items")
-    return [item.upper() for item in input_data]
+class SystemManager:
+    def __init__(self, config: Dict):
+        self.config = config
+        logger.info(f"Initialized with config: {{config}}")
+    
+    def process(self, data: List) -> List:
+        logger.info(f"Processing {{len(data)}} items")
+        results = [self._transform(item) for item in data]
+        return results
+    
+    def _transform(self, item):
+        # Apply business logic here
+        return item.upper()
 
 if __name__ == "__main__":
-    data = ["example", "data", "here"]
-    result = process_data(data)
-    print(f"Result: {{result}}")
+    manager = SystemManager({{"env": "production"}})
+    result = manager.process(["item1", "item2", "item3"])
+    print(f"Results: {{result}}")
 ```
 
-### The Qubit Takeaway
+## The Qubit Takeaway
 
-*Note: This post was auto-generated with fallback content. {error_msg}. The automation system continues to evolve to provide higher-quality technical content.*
+The landscape of cloud infrastructure and AI systems continues to evolve rapidly. Success requires staying current with emerging patterns while maintaining focus on fundamentals: reliability, security, and operational excellence. The teams that win are those who build systems that are both powerful and maintainable.
 """
 
 
+def create_structured_post(topic, content):
+    """Wraps content in proper Jekyll front matter and structure."""
+    
+    current_time = datetime.datetime.now(TIMEZONE)
+    current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S %z")
+    
+    # Generate title from topic
+    title = topic if len(topic) < 80 else topic[:77] + "..."
+    
+    # Generate keywords from topic
+    topic_words = re.findall(r'\b\w{4,}\b', topic.lower())
+    base_keywords = [
+        "machine learning", "ai", "cloud computing", "mlops", 
+        "devops", "automation", "infrastructure", "kubernetes"
+    ]
+    keywords = base_keywords + topic_words[:5]
+    keywords = list(dict.fromkeys(keywords))[:10]  # Remove duplicates, keep order
+    
+    # Create abstract
+    if len(topic) > 140:
+        abstract = f"Exploring {topic[:130]}..."
+    else:
+        abstract = f"A deep dive into {topic}"
+    
+    # Determine categories based on topic content
+    categories = ["ai", "ml", "cloud", "tech"]
+    topic_lower = topic.lower()
+    
+    if any(word in topic_lower for word in ["kubernetes", "k8s", "container"]):
+        categories.append("kubernetes")
+    if any(word in topic_lower for word in ["terraform", "iac", "infrastructure"]):
+        categories.append("infrastructure")
+    if any(word in topic_lower for word in ["mlops", "pipeline", "model"]):
+        categories.append("mlops")
+    if any(word in topic_lower for word in ["security", "secure", "zero-trust"]):
+        categories.append("security")
+    
+    # Remove duplicates while preserving order
+    categories = list(dict.fromkeys(categories))
+    
+    # Build the complete post
+    post_content = f"""---
+layout: post
+title: "{title}"
+date: {current_time_str}
+author: "Asrar Farooq"
+categories: {categories}
+abstract: "{abstract}"
+keywords: {keywords}
+---
+
+{content}
+"""
+    
+    return post_content
+
+
 def create_and_commit_post(markdown_content):
-    """Uses GitPython to commit the new post."""
+    """Commits and pushes the new post to GitHub with secure token handling."""
     
     title_match = re.search(r'title:\s*["\']?([^"\']+)["\']?', markdown_content)
     
     if title_match:
         title = title_match.group(1).strip()
     else:
-        title = "Automation Error Post"
-        print("⚠️ Title extraction failed; using default error title.")
+        title = "Automated Technical Post"
+        print("Warning: Title extraction failed; using default title.")
 
     now = datetime.datetime.now().strftime("%Y-%m-%d")
     filename = f"{now}-{slugify(title)}.md"
@@ -245,7 +311,7 @@ def create_and_commit_post(markdown_content):
     with open(filepath, "w", encoding='utf-8') as f:
         f.write(markdown_content)
     
-    print(f"📝 Created post file: {filepath}")
+    print(f"Created post file: {filepath}")
     
     try:
         repo = Repo(REPO_PATH)
@@ -255,92 +321,95 @@ def create_and_commit_post(markdown_content):
             git_config.set_value('user', 'name', 'Qubit Automation Bot')
             git_config.set_value('user', 'email', 'asrar.farooq.automation@qubit.xyz')
         
-        # Stage the file
+        # Stage and commit the file
         repo.index.add([filepath])
-        
-        # Create commit
-        commit_message = f"🤖 AUTO: New Post - {title}"
+        commit_message = f"AUTO: New Post - {title}"
         repo.index.commit(commit_message)
         
-        print(f"✅ Committed: {commit_message}")
+        print(f"Committed: {commit_message}")
         
-        # Get token and configure remote
+        # Get token from environment
         token = os.getenv('GH_TOKEN_AUTO_COMMIT')
         if not token:
             raise ValueError("GH_TOKEN_AUTO_COMMIT secret is missing.")
         
         # Get the remote origin
         origin = repo.remote(name='origin')
-        
-        # Get the current remote URL
         original_url = origin.url
         
         # Create authenticated URL
         if original_url.startswith('https://'):
-            # Replace https://github.com/ with https://TOKEN@github.com/
             auth_url = original_url.replace('https://github.com/', f'https://{token}@github.com/')
         elif original_url.startswith('git@'):
-            # Convert SSH to HTTPS with token
             auth_url = original_url.replace('git@github.com:', f'https://{token}@github.com/')
         else:
             auth_url = original_url
         
-        # Temporarily set the push URL
+        # Temporarily set the push URL and ensure it's restored even if push fails
         origin.set_url(auth_url, push=True)
         
-        print(f"🚀 Pushing to remote repository...")
-        
-        # Push with the authenticated URL
-        push_info = origin.push()[0]
-        
-        # Restore original URL
-        origin.set_url(original_url, push=True)
-        
-        if push_info.flags & push_info.ERROR:
-            raise git_exc.GitCommandError(f"Push failed: {push_info.summary}")
-        
-        print(f"✅ Successfully pushed new post: {title}")
+        try:
+            print(f"Pushing to remote repository...")
+            push_info = origin.push()[0]
+            
+            if push_info.flags & push_info.ERROR:
+                raise git_exc.GitCommandError(f"Push failed: {push_info.summary}")
+            
+            print(f"Successfully pushed new post: {title}")
+            
+        finally:
+            # CRITICAL: Always restore original URL to prevent token leakage
+            origin.set_url(original_url, push=True)
 
     except git_exc.GitCommandError as e:
-        print(f"❌ Git command failed: {e}")
-        print("💡 Check: PAT permissions (repo scope), branch protection rules")
+        print(f"Git command failed: {e}")
+        print("Check: PAT permissions (repo scope), branch protection rules")
         raise
     except ValueError as e:
-        print(f"❌ Configuration error: {e}")
+        print(f"Configuration error: {e}")
         raise
     except Exception as e:
-        print(f"❌ Unexpected error during git operations: {e}")
+        print(f"Unexpected error during git operations: {e}")
         raise
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Automated Qubit Blog Post Generator.')
-    parser.add_argument('--type', type=str, default='daily', choices=['daily', 'weekly'],
-                        help='Specify the type of post to generate (daily or weekly).')
     args = parser.parse_args()
 
     print("=" * 60)
-    print("🤖 QUBIT AUTOMATED BLOG POST GENERATOR")
+    print("QUBIT AUTOMATED BLOG POST GENERATOR")
     print("=" * 60)
 
     try:
-        if args.type == 'weekly':
-            print("📅 Generating WEEKLY ROUNDUP post...")
-            generated_md = generate_post_content(topic="Weekly Roundup", is_roundup=True)
+        existing_titles = get_existing_titles()
+        print(f"Found {len(existing_titles)} existing posts")
+        
+        # Get trending topic
+        topic = get_trending_topic(existing_titles)
+        
+        # Try to generate content with LLM
+        llm_content = generate_llm_content(topic)
+        
+        if llm_content:
+            print("Using LLM-generated content")
+            content = llm_content
         else:
-            print("📅 Generating DAILY technical post...")
-            existing_titles = get_existing_titles()
-            print(f"📚 Found {len(existing_titles)} existing posts")
-            topic = get_trending_topic(existing_titles)
-            generated_md = generate_post_content(topic)
+            print("Using fallback content template")
+            content = generate_fallback_content(topic)
 
-        create_and_commit_post(generated_md)
+        # Wrap content in proper structure
+        final_post = create_structured_post(topic, content)
+        
+        # Commit and push
+        create_and_commit_post(final_post)
+        
         print("=" * 60)
-        print("✅ AUTOMATION COMPLETE")
+        print("AUTOMATION COMPLETE")
         print("=" * 60)
         
     except Exception as e:
         print("=" * 60)
-        print(f"❌ AUTOMATION FAILED: {e}")
+        print(f"AUTOMATION FAILED: {e}")
         print("=" * 60)
         raise
