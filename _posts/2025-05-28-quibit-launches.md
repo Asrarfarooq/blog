@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Quibit Launches Today 🚀"
+title: "Qubit Launches Today 🚀"
 date: 2025-05-28 10:00:00 -0500
 author: "Asrar Farooq"
 categories: [ai, ml, cloud, tech]
